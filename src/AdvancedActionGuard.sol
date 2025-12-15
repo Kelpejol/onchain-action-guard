@@ -107,6 +107,8 @@ contract AdvancedActionGuard is AccessControl {
         check(caller, policyId, amount);
         recordExecution(caller, policyId);
 
+
         return true;
+        
     }
 }
