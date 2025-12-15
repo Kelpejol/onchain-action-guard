@@ -1,0 +1,33 @@
+# On-Chain Action Guard
+
+A minimal on-chain guard contract that enforces
+policy constraints before execution.
+
+This pattern is commonly used in multisigs,
+DAOs, and protocol risk management systems.
+
+## Architecture
+
+Caller
+  ↓
+ActionGuard (policy validation)
+  ↓
+Protected Contract (execution)
+
+## Guarantees
+
+- Explicit policy enforcement
+- Cooldown & rate limiting
+- Role-based authorization
+- Composable with other contracts
+
+## Non-Goals
+
+- Execution logic
+- Asset custody
+- Governance UI
+
+## Running Tests
+
+```bash
+forge test
