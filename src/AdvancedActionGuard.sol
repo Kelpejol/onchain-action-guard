@@ -1,9 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
-
+ 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
+/**
+ * @title AdvancedActionGuard
+ * @notice Multi-policy guard with signed approval support
+ * @dev Supports per-caller, per-policy enforcement with off-chain signatures
+ */
 contract AdvancedActionGuard is AccessControl {
     using ECDSA for bytes32;
 
@@ -31,6 +36,11 @@ contract AdvancedActionGuard is AccessControl {
     error InvalidSignature();
     error ReplayDetected();
 
+    event PolicySet(address indexed caller, bytes32 indexed policyId, uint256 maxAmount, uint256 cooldown);
+    event PolicyDisabled(address indexed caller, bytes32 indexed policyId);
+    event ExecutionRecorded(address indexed caller, bytes32 indexed policyId, uint256 timestamp);
+    event ApprovalUsed(bytes32 indexed digest);
+
     constructor() {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(POLICY_ADMIN_ROLE, msg.sender);
@@ -40,6 +50,13 @@ contract AdvancedActionGuard is AccessControl {
                             POLICY MGMT
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Set or update a policy for a caller
+     * @param caller Address the policy applies to
+     * @param policyId Unique identifier for the policy
+     * @param maxAmount Maximum amount allowed
+     * @param cooldown Minimum time between executions
+     */
     function setPolicy(
         address caller,
         bytes32 policyId,
@@ -51,19 +68,33 @@ contract AdvancedActionGuard is AccessControl {
             cooldown: cooldown,
             enabled: true
         });
+        emit PolicySet(caller, policyId, maxAmount, cooldown);
     }
 
+    /**
+     * @notice Disable a policy
+     * @param caller Address the policy applies to
+     * @param policyId Policy to disable
+     */
     function disablePolicy(address caller, bytes32 policyId)
         external
         onlyRole(POLICY_ADMIN_ROLE)
     {
         policies[caller][policyId].enabled = false;
+        emit PolicyDisabled(caller, policyId);
     }
 
     /*//////////////////////////////////////////////////////////////
                             CHECK LOGIC
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Check if an action is allowed under a specific policy
+     * @param caller Address attempting the action
+     * @param policyId Policy to check against
+     * @param amount Amount of the action
+     * @return bool True if allowed
+     */
     function check(
         address caller,
         bytes32 policyId,
@@ -79,14 +110,29 @@ contract AdvancedActionGuard is AccessControl {
         return true;
     }
 
+    /**
+     * @notice Record an execution to enforce cooldown
+     * @param caller Address that executed
+     * @param policyId Policy that was used
+     */
     function recordExecution(address caller, bytes32 policyId) internal {
         lastExecution[caller][policyId] = block.timestamp;
+        emit ExecutionRecorded(caller, policyId, block.timestamp);
     }
 
     /*//////////////////////////////////////////////////////////////
                         SIGNED APPROVAL PATH
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @notice Check action with off-chain signed approval
+     * @param caller Address attempting the action
+     * @param policyId Policy to check
+     * @param amount Amount of the action
+     * @param nonce Unique nonce for replay protection
+     * @param signature Signature from POLICY_ADMIN_ROLE holder
+     * @return bool True if allowed
+     */
     function checkWithApproval(
         address caller,
         bytes32 policyId,
@@ -107,8 +153,8 @@ contract AdvancedActionGuard is AccessControl {
         check(caller, policyId, amount);
         recordExecution(caller, policyId);
 
+        emit ApprovalUsed(digest);
 
         return true;
-        
     }
 }
