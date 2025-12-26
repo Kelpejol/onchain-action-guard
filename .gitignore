@@ -1,3 +1,30 @@
-out/
+# Foundry
 cache/
+out/
+broadcast/
+
+# Dotenv
 .env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules/
+lib/
+!lib/forge-std
+
+# Coverage
+coverage/
+lcov.info
+
+# Gas reports
+.gas-snapshot
